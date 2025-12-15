@@ -1,6 +1,6 @@
 # Rank Package
 
-`my-rank` 是一个基于 Redis ZSET 实现的高性能排行榜系统。它支持时间权重排序（同分情况下，先达到的排在前面），并提供了本地缓存、WAL（预写日志）和自动校准功能。
+`rank` 是一个基于 Redis ZSET 实现的高性能排行榜系统。它支持时间权重排序（同分情况下，先达到的排在前面），并提供了本地缓存、WAL（预写日志）和自动校准功能。
 
 ## 特性
 
@@ -16,7 +16,7 @@
 ## 安装
 
 ```go
-import "github.com/xiaowen-17/my-rank"
+import "github.com/xiaowen-17/rank"
 ```
 
 ## 核心概念
@@ -76,3 +76,4 @@ list, err := router.FetchRankList(0, 9)
 ```go
 router.Stop()
 ```
+
