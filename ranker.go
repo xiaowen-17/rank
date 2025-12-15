@@ -6,9 +6,9 @@ import (
 	"math"
 	"time"
 
-	"dramax.com/share/pkg/log"
-	"dramax.com/share/pkg/redis"
 	"github.com/spf13/cast"
+	"github.com/xiaowen-17/go-redisx"
+	"github.com/xiaowen-17/log"
 	"github.com/zeromicro/go-zero/core/collection"
 )
 
@@ -51,7 +51,7 @@ const luaScript = `
 
 // RankRouter 排行榜路由
 type RankRouter struct {
-	RdsCli            *redis.RedisManager
+	RdsCli            *redisx.RedisManager
 	Name              string
 	Key               string
 	StartTs           int64
@@ -92,7 +92,7 @@ const (
 )
 
 // NewRankRouter 创建排行榜路由
-func NewRankRouter(rds *redis.RedisManager, name string, periodInfo PeriodInfo, opts ...RankOption) *RankRouter {
+func NewRankRouter(rds *redisx.RedisManager, name string, periodInfo PeriodInfo, opts ...RankOption) *RankRouter {
 	deltaTs := periodInfo.EndTs - periodInfo.StartTs
 	timePadWidth := 0
 
