@@ -3,7 +3,7 @@ package zrank
 import (
 	"context"
 	"fmt"
-	"math"
+	"strings"
 	"time"
 
 	"github.com/spf13/cast"
@@ -15,12 +15,12 @@ import (
 const luaScript = `
 		-- 排行榜key
 		local key = KEYS[1]
-		-- 要更新的成员id
+		-- 要更新的用户id
 		local uid = ARGV[1]
-		-- 成员本次新增的val（小数位为时间差标识）
+		-- 用户本次新增的val（小数位为时间差标识）
 		local valScore = ARGV[2]
 
-		-- 获取成员之前的score
+		-- 获取用户之前的score
 		local score = redis.call("ZSCORE", key, uid)
 		if score == false then
 			score = 0
@@ -28,11 +28,11 @@ const luaScript = `
 		-- 从score中抹除用于时间差标识的小数部分，获取整数的排序val
 		local val = math.floor(score)
 
-		-- 更新成员最新的score信息（累计val.最新时间差）
+		-- 更新用户最新的score信息（累计val.最新时间差）
 		local newScore = valScore+val
 		redis.call("ZADD", key, newScore, uid)
 
-		-- 更新成功返回newScore（使用tostring返回小数）
+		-- 更新成功返回newScore（注意要使用tostring才能返回小数）
 		return tostring(newScore)
 	`
 
@@ -235,7 +235,9 @@ func (r *RankRouter) valToScore(val int64, usedTs int64) float64 {
 
 // scoreToVal 从编码的 score 中提取整数部分（实际分数）
 func (r *RankRouter) scoreToVal(score float64) int64 {
-	return int64(math.Floor(score))
+	scoreStr := fmt.Sprint(score)
+	ss := strings.Split(scoreStr, ".")
+	return cast.ToInt64(ss[0])
 }
 
 func (r *RankRouter) getLocalCacheKey(key string) string {

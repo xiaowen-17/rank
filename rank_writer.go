@@ -116,12 +116,12 @@ type RankWriter struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
 	wg              sync.WaitGroup
-	snapshotTick    time.Duration // 聚合器快照生成间隔
-	flushTick       time.Duration // 聚合器快照写入 Redis 间隔
-	compactInterval time.Duration // 聚合器快照压缩间隔
-	seq             int64         // 本地序列生成器
-	maxApplyBatch   int           // 控制批量写入并发度
-
+	snapshotTick    time.Duration  // 聚合器快照生成间隔
+	flushTick       time.Duration  // 聚合器快照写入 Redis 间隔
+	compactInterval time.Duration  // 聚合器快照压缩间隔
+	seq             int64          // 本地序列生成器
+	maxApplyBatch   int            // 控制批量写入并发度
+	pushWg          sync.WaitGroup // 追踪正在进行的Push操作
 }
 
 // newRankWriter 创建 RankWriter；dir 为 wal 存放目录
@@ -169,6 +169,9 @@ func (rw *RankWriter) nextSeq() int64 {
 
 // Push 写 events.wal（持久化），并把数据加入内存聚合
 func (rw *RankWriter) Push(memberID, val, usedTs int64) error {
+	rw.pushWg.Add(1)
+	defer rw.pushWg.Done()
+
 	seq := rw.nextSeq()
 	ev := EventEntry{
 		Seq:      seq,
@@ -184,6 +187,11 @@ func (rw *RankWriter) Push(memberID, val, usedTs int64) error {
 	memberKey := cast.ToString(memberID)
 	rw.agg.Add(memberKey, val, usedTs)
 	return nil
+}
+
+// WaitForPending 等待所有正在进行的Push完成
+func (rw *RankWriter) WaitForPending() {
+	rw.pushWg.Wait()
 }
 
 // appendEvent 追加事件行（线程安全）
@@ -472,7 +480,10 @@ func (rw *RankWriter) replayEventsToAgg() error {
 // ForceFlush 强制刷新所有WAL数据到Redis(阻塞直到完成)
 // 注意：会停止后台协程，调用后RankWriter进入只读状态
 func (rw *RankWriter) ForceFlush() error {
-	// 先停止后台协程，避免并发冲突
+	// 先等待所有正在进行的Push完成
+	rw.WaitForPending()
+
+	// 再停止后台协程
 	rw.cancel()
 	rw.wg.Wait()
 
